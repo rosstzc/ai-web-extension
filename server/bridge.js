@@ -72,6 +72,9 @@ class Bridge {
     }, 25000);
     this._pingTimer.unref?.();
 
+    // 从磁盘恢复历史任务记录（重启不丢：read_result / list_results 能查到已完成任务）
+    this.hydrateFromDisk();
+
     return this;
   }
 
@@ -112,6 +115,83 @@ class Bridge {
 
   listTasks() {
     return Array.from(this.tasks.values());
+  }
+
+  /**
+   * 把任务的元数据写成 .json 侧车（跟结果 txt 同目录），重启后可恢复记录。
+   * 侧车只存元数据（id/平台/状态/时间/文件路径），**不含结果正文**——正文在 txt 里。
+   */
+  _writeRecord(task) {
+    const meta = {
+      id: task.id,
+      platform: task.platform,
+      status: task.status,
+      createdAt: task.createdAt,
+      completedAt: task.completedAt || null,
+      error: task.error || null,
+      file: task.file || null,
+      saveTo: task.saveTo || null,
+    };
+    try {
+      fs.mkdirSync(this.outputDir, { recursive: true });
+      const sidecar = path.join(this.outputDir, `${task.id}.json`);
+      fs.writeFileSync(sidecar, JSON.stringify(meta, null, 2), 'utf8');
+    } catch (e) {
+      this.log('[bridge] 写 .json 侧车失败:', e.message);
+    }
+  }
+
+  /** 从 outputs/ 的 .json 侧车恢复历史任务（done/error 已完成的任务），实现"重启记录不丢"。 */
+  hydrateFromDisk() {
+    let loaded = 0;
+    try {
+      if (!fs.existsSync(this.outputDir)) return loaded;
+      for (const fname of fs.readdirSync(this.outputDir)) {
+        if (!fname.endsWith('.json')) continue;
+        const p = path.join(this.outputDir, fname);
+        try {
+          const meta = JSON.parse(fs.readFileSync(p, 'utf8'));
+          if (!meta || !meta.id) continue;
+          if (this.tasks.has(meta.id)) continue; // 不覆盖内存里的活任务
+          this.tasks.set(meta.id, {
+            id: meta.id,
+            platform: meta.platform,
+            status: meta.status,
+            createdAt: meta.createdAt,
+            completedAt: meta.completedAt || null,
+            error: meta.error || null,
+            file: meta.file || null,
+            saveTo: meta.saveTo || null,
+          });
+          loaded++;
+        } catch {
+          // 单个坏侧车跳过，不影响其它
+        }
+      }
+    } catch (e) {
+      this.log('[bridge] 恢复历史记录失败:', e.message);
+    }
+    if (loaded) this.log(`[bridge] 已从磁盘恢复 ${loaded} 条历史任务`);
+    return loaded;
+  }
+
+  /**
+   * 取任务结果正文。内存里有 result 直接用；否则（如重启后从侧车恢复的）
+   * 若任务完成且有落盘文件，则读文件返回。
+   * @returns {string|null} 正文；未完成/无文件时返回 null
+   */
+  getContent(task) {
+    if (!task) return null;
+    if (task.status !== 'done') return null;
+    if (task.result != null) return task.result;
+    if (task.file) {
+      try {
+        return fs.readFileSync(task.file, 'utf8');
+      } catch {
+        return null;
+      }
+    }
+    return null;
   }
 
   // ===================== WS 连接处理 =====================
@@ -181,6 +261,10 @@ class Bridge {
         this.log('[bridge] 结果落盘失败:', e.message);
       }
     }
+
+    // 结果旁写 .json 侧车（任务元数据，不含正文）：重启后仍能查到记录
+    this._writeRecord(task);
+
     this.log(`[bridge] 任务 ${taskId} → ${task.status}${task.error ? `：${task.error}` : ''}`);
 
     if (this.onResult) {

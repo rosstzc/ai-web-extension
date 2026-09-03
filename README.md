@@ -1,111 +1,124 @@
-# ai-webapi-extension
+# AI 网页遥控器 · ai-web-extension
 
-把**已登录的 AI 网页**（当前支持 [DeepSeek 网页版](https://chat.deepseek.com)）封装成 **MCP 服务**，让你的 AI 客户端（Claude Code / Codex / WorkBuddy 等一切支持 MCP 的工具）像调工具一样直接向 DeepSeek 提问——复用浏览器里现成的登录会话，**无 CDP、无自动化特征**。
+> **一句话**:让你正在用的 AI 助手(Claude Code / Codex / WorkBuddy 等),能去问你浏览器里**已登录的 DeepSeek 网页**,再把答案带回来给你。
+>
+> 免费、不写代码、不动你的账号、不装自动化程序。
 
-```
-你的 AI 客户端 → MCP Server → WebSocket 桥(127.0.0.1:9898) → Chrome/Edge 插件 → chat.deepseek.com 已登录页面
-```
+---
 
-## 特性
+## 这是干什么的?(30 秒看懂)
 
-- **反检测**：内容脚本操作真实浏览器页面，无 `navigator.webdriver`、无 CDP，DeepSeek 等站点不感知是脚本调用
-- **复用登录态**：直接用你已登录的浏览器会话，无需抓 Cookie、无需账号密码
-- **异步任务**：`ask_ai` 立即返回 task_id，`read_result` 轮询结果，不阻塞大模型
-- **本地服务**：MCP 与桥都跑在本地 127.0.0.1，WebSocket 握手校验 `chrome-extension://` Origin 防本地劫持
+你写代码或用 AI 时,常想要第二个模型的意见:
 
-## 要求
+- Claude Code 里的 Claude 答不上 / 想换个模型再听听?
+- 看到 DeepSeek 网页版的答案很好,但懒得手动复制粘贴过来?
+- 想"免费多用几个 AI",又不想在窗口之间来回切?
 
-- Node ≥ 18
-- Chrome 或 Edge（已登录 chat.deepseek.com）
-- 任意 MCP 客户端（Claude Code / Codex / WorkBuddy / …）
+装上这个之后,你只要**正常对你的 AI 助手说话**:
+
+> 「帮我去问一下 DeepSeek:为什么我的项目 npm install 一直报错?」
+
+它就会自动打开你浏览器里已登录的 DeepSeek,把问题发过去、等它答完、把答案带回你的终端。**全程不用你手动复制粘贴。**
+
+---
+
+## 我需要这个吗?
+
+满足下面 **3 条** 就是目标用户:
+
+- ✅ 你在用 **Claude Code / Codex / WorkBuddy** 这类 AI 助手(本项目的"遥控器"按钮)
+- ✅ 你能登录 **chat.deepseek.com**(DeepSeek 网页版,要有个账号,免费)
+- ✅ 你想多用一个免费模型,而不是只在自家模型里打转
+
+都满足 → 装一次约 5 分钟,之后一直能用。装的过程里大部分操作由 AI 帮你做,你只需亲手点 2 下浏览器。
+
+---
 
 ## 安装
 
-```bash
-# 1. 拉取代码
-git clone <仓库地址>
-cd ai-webapi-extension
+### 方法 A:让 AI 帮你装(推荐,自己不用敲命令)
 
-# 2. 装依赖（顺手把 Claude Code 的 MCP 也注册好，可加 --scope user 全局生效）
+把下面这段话**整段复制**,发给你的 AI 助手(你平时用的那个):
+
+> 帮我安装 GitHub 上的 **ai-web-extension** 这个项目,让我的 DeepSeek 网页能被 AI 调用。请你:
+> 1. 先读这个仓库的 README;
+> 2. 按 README 里「📋 给 AI 的安装步骤」一节,一步步执行(git 没有就先装 git,Node 没有就先装 Node ≥ 18);
+> 3. 装完用中文告诉我:**接下来需要我亲手做的 2 件事**是哪 2 件,怎么做。
+
+你的 AI 会自己 git clone、装依赖、把它自己接入本项目。你等它说"该你了"就行。
+
+### 方法 B:自己动手装(可选)
+
+想自己一步步来也可以:
+
+```bash
+git clone https://github.com/rosstzc/ai-web-extension.git
+cd ai-web-extension
 npm install
-npm run setup
+npm run setup        # 顺手把 Claude Code 的 MCP 注册好
 ```
 
-### 3. 加载浏览器插件（一次性）
+---
 
-1. 打开 `chrome://extensions`（Edge 为 `edge://extensions`）
-2. 右上角开启「开发者模式」
-3. 点「加载已解压的扩展程序」→ 选择本仓库的 `extension/` 目录
-4. 浏览器打开 https://chat.deepseek.com 并登录一次
+## 📋 给 AI 的安装步骤(方法 A 时执行,人不用看)
 
-> 插件为什么手动加载：要复用你**日常浏览器**的登录态（这是反检测的关键），加载一次即永久生效。
+1. 在用户机器上执行:`git clone https://github.com/rosstzc/ai-web-extension.git`,然后 `cd` 进目录。缺 git 先装 git,缺 Node 先装 Node ≥ 18。
+2. 执行 `npm install` 装依赖。
+3. 执行 `npm run setup`(会注册 MCP)。若你的客户端不认这条,按你客户端支持的方式接入本仓库根目录的 `.mcp.json`,其中 MCP 服务名为 `ai-webapi`,命令为 `node` + 参数 `server/mcp-server.js`。
+4. 完成后告诉用户:
+   - 安装已完成;
+   - 接下来他需要亲手做 **2 件事**(浏览器里操作,你代替不了,见下节);
+   - 之后怎么用(见「怎么用」)。
 
-## 接入你的客户端
+---
 
-仓库根已备好 `.mcp.json`，绝大多数客户端都能直接读取：
+## 装完后,你要亲手做的 2 件事(各约 1 分钟)
 
-```json
-{
-  "mcpServers": {
-    "ai-webapi": {
-      "command": "node",
-      "args": ["server/mcp-server.js"]
-    }
-  }
-}
-```
+AI 替你装好了程序,但这 2 件是在浏览器图形界面里点的,**只能你亲手做一次**,做完永久生效:
 
-- **Codex / WorkBuddy 等**：直接读取本仓库的 `.mcp.json` 即可接入。
-- **Claude Code**：`npm run setup` 已自动执行 `claude mcp add ai-webapi -- node "<本仓库绝对路径>/server/mcp-server.js"`；也可手动执行同一条命令。
+**① 把浏览器插件加进来**
 
-> 注意：`.mcp.json` 里的相对路径以**仓库根**为基准启动，请确保在仓库根目录下让客户端加载配置。
+1. 打开 Edge 浏览器,地址栏输入 `edge://extensions`(Chrome 用户输 `chrome://extensions`)回车
+2. 打开左下角/右上角的「**开发者模式**」开关
+3. 点「**加载解压的扩展程序**」→ 选择你刚才 clone 下来的 `ai-web-extension` 文件夹里的 **`extension`** 文件夹
+4. 看到浏览器右上角出现「AI WebAPI Bridge」图标 = 成功
 
-## 使用
+**② 登录一次 DeepSeek**
 
-接入后，直接自然语言调用：
+- 打开 https://chat.deepseek.com ,用你的账号登录一次
+- 之后保持这个页面开着(放在后台就行),插件操作的就是它
 
-```
-用 ask_ai 向 DeepSeek 提问：「用一句话介绍 Vue 3」
-```
+> 为什么插件要手动加载?因为它要借用你**日常浏览器**里已登录的 DeepSeek 会话,这样网站完全不知道是程序在调它——这也是"免费、不动账号"的关键。
 
-可用的三个 MCP 工具：
+---
 
-| 工具 | 说明 | 参数 |
-|---|---|---|
-| `ask_ai` | 提交提问（异步） | `prompt`（必填）、`platform`（默认 deepseek）、`save_to`（可选） |
-| `read_result` | 读取结果 | `task_id`（ask_ai 返回） |
-| `list_results` | 列出本会话任务 | 无 |
+## 怎么用
 
-典型流程：`ask_ai` 拿到 task_id → 等几十秒 → `read_result` 读回 DeepSeek 回复。
+装好后,**不用学任何新东西**,就正常跟你原来的 AI 助手说话。它需要第二个意见时,自然会用 `ask_ai` 工具去问 DeepSeek,并把结果告诉你。
 
-## 排障
+也可以直接点名让它去问:
 
-| 现象 | 原因与处理 |
+> 用 ask_ai 问 DeepSeek:「用一句话介绍 Vue 3」
+
+DeepSeek 的回答会作为工具结果返回到你的对话里。回答可能要等 10~60 秒,属正常。
+
+---
+
+## 常见问题
+
+| 问题 | 回答 |
 |---|---|
-| `ask_ai` 返回 `plugin_connected: false` | 桥起了但插件没连上：确认插件已加载、MCP Server 在跑；点插件图标看状态 |
-| `read_result` 一直 pending | DeepSeek 正在生成（正常）；若 >10 分钟未动，打开 DeepSeek 页看是否弹验证码/登录过期 |
-| 报「未找到 DeepSeek 输入框」 | 页面未登录或改版；先手动打开 chat.deepseek.com 确认登录 |
-| 插件重载后报「Receiving end does not exist」 | 已内置自愈：插件会自动刷新页面重新注入，重试即可 |
-| 结果换行丢失 | 已知瑕疵：markdown 列表提取时 `<li>` 间换行未保留，内容正确仅格式丢换行 |
+| 问完一直没结果? | 等一下,DeepSeek 生成要 10~60 秒;超过 10 分钟没动,看看 DeepSeek 页面是不是弹了验证码或登录过期 |
+| 提示"插件没连接"? | 检查插件图标在不在、DeepSeek 页面是否开着并已登录;确认后再问一次 |
+| 没装成,报错了? | 把完整报错发给你的 AI 助手,它会按 README 继续处理 |
+| 这会不会动我账号 / 违反规则? | 它只是模拟你在网页里正常提问,不抓 Cookie、不改设置;但请只做你自己的正常使用 |
 
-## curl 兜底（无 MCP 客户端时调试用）
+---
 
-```bash
-npm run http   # 起桥 + HTTP 调试口(9899)
+## 想深入了解
 
-curl -s -X POST http://127.0.0.1:9899/tasks -H 'Content-Type: application/json' \
-  -d '{"prompt":"你好","platform":"deepseek"}'
-# → {"id":"<task_id>",...}
-
-curl -s http://127.0.0.1:9899/tasks/<task_id>
-# status=done 时 result 字段为回复全文
-```
-
-## 二期规划
-
-- 更多平台：豆包 / ChatGPT / Gemini（加 `extension/adapters/<site>.js`，`ask_ai.platform` 枚举扩展）
-- 文件上传（PDF/DOCX，DataTransfer 写 `input.files`）
-- 流式输出、并发路由
+- 原理:AI 助手 → 本机 MCP 服务 → 浏览器插件 → 你已登录的 DeepSeek 页面。全部在本地,`ws://127.0.0.1:9898`。
+- 想自己写扩展支持更多 AI 网页(豆包 / ChatGPT / Gemini 等),见 `extension/adapters/`。
 
 ## License
 

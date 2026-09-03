@@ -64,7 +64,7 @@ server.registerTool(
             plugin_connected: connected,
             estimated_time: '约 10-60 秒',
             hint: connected
-              ? '任务已下发到插件，用 read_result 读取结果'
+              ? '任务已下发到插件，完成后用 read_result 查询（默认返回 file 路径，需要正文请读文件或传 include_content=true）'
               : '插件未连接，任务已入队；请确认 Chrome 已加载插件后稍候再 read_result',
           }),
         },
@@ -77,9 +77,17 @@ server.registerTool(
   'read_result',
   {
     title: '读取 AI 提问结果',
-    description: '按 task_id 读取之前 ask_ai 提交任务的结果。任务未完成时返回 status 供轮询。',
+    description:
+      '按 task_id 读取之前 ask_ai 提交任务的结果。规则：结果会自动落盘到 file 指向的文件，' +
+      '本工具【默认只返回元数据（状态+文件路径），不含正文】——需要看正文请用你自己的文件读取工具打开 file，' +
+      '或传 include_content=true 让本工具附上正文（交互问答/单次提问用这个）。' +
+      '任务未完成时返回 status 供轮询。',
     inputSchema: {
       task_id: z.string().describe('ask_ai 返回的任务 ID'),
+      include_content: z
+        .boolean()
+        .optional()
+        .describe('是否在返回中附带结果正文（默认 false；true 时 status=done 才含 content 字段）'),
     },
   },
   async (args) => {
@@ -87,22 +95,23 @@ server.registerTool(
     if (!task) {
       return { content: [{ type: 'text', text: JSON.stringify({ error: '任务不存在', task_id: args.task_id }) }] };
     }
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({
-            task_id: task.id,
-            status: task.status,
-            platform: task.platform,
-            content: task.status === 'done' ? task.result : null,
-            error: task.error || null,
-            file: task.file || null,
-            message: task.status === 'done' ? '完成' : task.status === 'error' ? '失败' : '结果尚未生成，请稍后重试',
-          }),
-        },
-      ],
+    const out = {
+      task_id: task.id,
+      status: task.status,
+      platform: task.platform,
+      error: task.error || null,
+      file: task.file || null,
+      message:
+        task.status === 'done'
+          ? '完成（正文已落盘到 file，需要时读取该文件）'
+          : task.status === 'error'
+            ? '失败'
+            : '结果尚未生成，请稍后重试',
     };
+    if (args.include_content === true) {
+      out.content = bridge.getContent(task); // done→正文；未完成→null
+    }
+    return { content: [{ type: 'text', text: JSON.stringify(out) }] };
   }
 );
 
