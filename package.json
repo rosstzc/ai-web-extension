@@ -1,0 +1,27 @@
+{
+  "name": "ai-webapi-extension",
+  "version": "0.1.0",
+  "description": "把已登录的 AI 网页（DeepSeek 首发）封装成 MCP 服务，供 Claude Code 调用。Chrome/Edge 插件 + Node 本地桥，无 CDP 特征。",
+  "main": "server/mcp-server.js",
+  "scripts": {
+    "setup": "node scripts/install.js",
+    "start": "node server/mcp-server.js",
+    "http": "node server/mcp-server.js --http"
+  },
+  "keywords": [
+    "mcp",
+    "chrome-extension",
+    "deepseek",
+    "ai",
+    "websocket",
+    "claude-code"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "ws": "^8.21.3"
+  }
+}

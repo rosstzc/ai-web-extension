@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "AI WebAPI Bridge",
+  "version": "0.1.0",
+  "description": "把已登录的 AI 网页（DeepSeek 首发）封装成本地服务，供大模型（MCP）调用。无 CDP 特征。",
+  "permissions": ["tabs", "storage", "alarms"],
+  "host_permissions": ["https://chat.deepseek.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chat.deepseek.com/*"],
+      "js": ["adapters/deepseek.js", "content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "AI WebAPI Bridge",
+    "default_popup": "popup.html"
+  }
+}

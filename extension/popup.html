@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>AI WebAPI Bridge</title>
+  <style>
+    body { width: 260px; margin: 0; padding: 14px; font-family: system-ui, sans-serif; font-size: 13px; }
+    h1 { font-size: 14px; margin: 0 0 10px; }
+    .row { display: flex; justify-content: space-between; margin: 6px 0; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .ok { background: #2ecc71; }
+    .bad { background: #e74c3c; }
+    button { width: 100%; margin-top: 10px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+    button:active { background: #eee; }
+    #result { margin-top: 8px; color: #333; white-space: pre-wrap; word-break: break-all; }
+    .err { color: #c0392b; }
+    .ok-text { color: #27ae60; }
+  </style>
+</head>
+<body>
+  <h1>AI WebAPI Bridge</h1>
+  <div class="row">
+    <span>本地桥 (ws://127.0.0.1:9898)</span>
+    <span id="bridge-status">…</span>
+  </div>
+  <div class="row">
+    <span>DeepSeek 页面</span>
+    <span id="page-status">…</span>
+  </div>
+  <button id="test">测试链路</button>
+  <div id="result"></div>
+  <script src="popup.js"></script>
+</body>
+</html>
